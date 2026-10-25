@@ -1,0 +1,120 @@
+import_email:
+  name: Import parkrun email
+  description: Import a complete English parkrun result or volunteering email. The body must contain the matching barcode.
+  fields:
+    athlete_id:
+      name: Barcode
+      required: true
+      selector:
+        text:
+    subject:
+      name: Email subject
+      required: true
+      selector:
+        text:
+    body:
+      name: Complete email body
+      required: true
+      selector:
+        text:
+          multiline: true
+
+update_data:
+  name: Update runner data manually
+  description: Set selected summary fields. Omitted fields remain unchanged. Saves locally across restarts. For a yearly time supply both year_best and year_best_year.
+  fields:
+    updates:
+      name: Structured corrections
+      description: Object with summary, personal_best, best_age_grade, results, remove_results and/or locations (run and volunteer name lists). Use instead of flat fields. Dated results maintain rolling records.
+      selector:
+        object:
+    athlete_id:
+      name: Barcode
+      required: true
+      selector:
+        text:
+    personal_best:
+      name: "Personal best (MM:SS or HH:MM:SS)"
+      selector:
+        text:
+    pb_date:
+      name: "PB date (YYYY-MM-DD)"
+      selector:
+        text:
+    pb_location:
+      name: "PB location"
+      selector:
+        text:
+    pb_event_id:
+      name: "PB event ID"
+      selector:
+        number:
+          min: 0
+          max: 999999
+          step: 1
+          mode: box
+    best_age_grade:
+      name: "Best age grade (%)"
+      selector:
+        number:
+          min: 0
+          max: 200
+          step: 0.01
+          mode: box
+    bag_date:
+      name: "Best age grade date (YYYY-MM-DD)"
+      selector:
+        text:
+    bag_location:
+      name: "Best age grade location"
+      selector:
+        text:
+    bag_event_id:
+      name: "Best age grade event ID"
+      selector:
+        number:
+          min: 0
+          max: 999999
+          step: 1
+          mode: box
+    total_runs:
+      name: "Total runs"
+      selector:
+        number:
+          min: 0
+          max: 999999
+          step: 1
+          mode: box
+    unique_locations:
+      name: "Unique locations"
+      selector:
+        number:
+          min: 0
+          max: 999999
+          step: 1
+          mode: box
+    volunteer_count:
+      name: "Volunteer count"
+      selector:
+        number:
+          min: 0
+          max: 999999
+          step: 1
+          mode: box
+    latest_category:
+      name: "Age category"
+      selector:
+        text:
+    year_best:
+      name: "Year best (MM:SS or HH:MM:SS)"
+      selector:
+        text:
+    year_best_year:
+      name: "Year of yearly best"
+      selector:
+        number:
+          min: 2004
+          max: 999999
+          step: 1
+          mode: box
+

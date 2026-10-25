@@ -1,0 +1,22 @@
+{
+  "title": "Parkrun from IMAP",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up local parkrun records",
+        "description": "Enter a barcode and display name. Records come from email imports or manual actions; no connection to parkrun is made.",
+        "data": {
+          "athlete_id": "Barcode ID (with or without 'A' prefix)",
+          "runner_name": "Runner Name (for display in Home Assistant)"
+        }
+      }
+    },
+    "error": {
+      "invalid_barcode": "Enter a numeric barcode, optionally prefixed with A",
+      "invalid_name": "Enter a name between 1 and 200 characters"
+    },
+    "abort": {
+      "already_configured": "This Parkrun barcode is already configured"
+    }
+  }
+}

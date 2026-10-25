@@ -1,0 +1,14 @@
+{
+  "domain": "parkrun5k",
+  "name": "Parkrun from IMAP",
+  "codeowners": [
+    "@B-Hartley"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/B-Hartley/parkrun_from_imap",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/B-Hartley/parkrun_from_imap/issues",
+  "requirements": [],
+  "version": "3.0.0"
+}
