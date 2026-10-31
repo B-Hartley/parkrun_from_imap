@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -34,24 +34,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await coordinator.store.async_save(data)
     coordinator.async_set_updated_data(data)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    # Retire only the entities explicitly removed by this major version.
-    registry = er.async_get(hass)
-    obsolete = {f"{DOMAIN}_{entry.entry_id}_{suffix}" for suffix in
-                ("refresh", "new_runs", "next_location", "next_cancelled", "data_live")}
-    legacy_buttons = ("get_all_runs", "get_new_runs")
-    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if entity.platform != DOMAIN:
-            continue
-        is_legacy_button = (
-            entity.domain == "button"
-            and any(
-                entity.entity_id.endswith("_" + suffix)
-                or entity.unique_id.endswith("_" + suffix)
-                for suffix in legacy_buttons
-            )
-        )
-        if entity.unique_id in obsolete or is_legacy_button:
-            registry.async_remove(entity.entity_id)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register once; resolve live coordinators on every call (supports reloads).
