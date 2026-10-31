@@ -284,3 +284,125 @@ def refresh_locations(data, get_event_name):
             combined.setdefault(key, {'location': entry['location'], 'run': False, 'volunteer': False})[kind] = True
     data['visited_location_details'] = sorted(combined.values(), key=lambda v: v['location'].casefold())
     return data
+
+
+"""Import saved English parkrunner all-results pages; never fetch remote URLs."""
+
+from datetime import datetime
+from html.parser import HTMLParser
+import math
+import re
+
+
+
+
+class ResultsHTML(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.tables = []
+        self.table = None
+        self.row = None
+        self.cell = None
+        self.caption = False
+        self.text = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'table':
+            self.table = {'caption': '', 'rows': []}
+        elif self.table is not None:
+            if tag == 'caption':
+                self.caption = True
+            elif tag == 'tr':
+                self.row = []
+            elif tag in ('td', 'th') and self.row is not None:
+                self.cell = []
+
+    def handle_data(self, text):
+        self.text.append(text)
+        if self.table is not None and self.caption:
+            self.table['caption'] += text
+        if self.cell is not None:
+            self.cell.append(text)
+
+    def handle_endtag(self, tag):
+        if tag == 'caption':
+            self.caption = False
+        elif tag in ('td', 'th') and self.cell is not None:
+            self.row.append(' '.join(''.join(self.cell).split()))
+            self.cell = None
+        elif tag == 'tr' and self.row is not None:
+            self.table['rows'].append(self.row)
+            self.row = None
+        elif tag == 'table' and self.table is not None:
+            self.tables.append(self.table)
+            self.table = None
+
+
+def parse_results_html(html, athlete_id):
+    if not isinstance(html, str) or len(html) > 5_000_000:
+        raise ValueError('Supply an HTML page smaller than 5 MB')
+    parser = ResultsHTML()
+    parser.feed(html)
+    text = ' '.join(parser.text)
+    barcode = str(athlete_id).upper().removeprefix('A')
+    if set(re.findall(r'\(A(\d+)\)', text)) != {barcode}:
+        raise ValueError('HTML athlete barcode is absent or does not match')
+    total_match = re.search(r'([\d,]+)\s+parkruns?\s+total', text, re.I)
+    if not total_match:
+        raise ValueError('Full results total was not found')
+    total = int(total_match.group(1).replace(',', ''))
+    tables = [t for t in parser.tables if ' '.join(t['caption'].split()).lower() == 'all results']
+    if len(tables) != 1 or not tables[0]['rows']:
+        raise ValueError('Expected one complete All Results table')
+    rows = tables[0]['rows']
+    headers = [re.sub(r'[^a-z]', '', h.lower()) for h in rows[0]]
+    required = ['event', 'rundate', 'runnumber', 'pos', 'time', 'agegrade']
+    if not all(h in headers for h in required):
+        raise ValueError('Unsupported results table columns')
+    runs = []
+    for cells in rows[1:]:
+        if len(cells) != len(headers):
+            raise ValueError('Incomplete results table row')
+        values = dict(zip(headers, cells))
+        day = datetime.strptime(values['rundate'], '%d/%m/%Y').date()
+        seconds = time_seconds(values['time'])
+        grade = float(values['agegrade'].replace('%', ''))
+        if not math.isfinite(grade) or not 0 <= grade <= 200:
+            raise ValueError('Invalid age grade in results')
+        number, position = int(values['runnumber']), int(values['pos'])
+        if number < 1 or position < 1 or not values['event']:
+            raise ValueError('Invalid event or position in results')
+        runs.append({'eventName': values['event'], 'date': day.isoformat() + 'T00:00:00',
+                     'runNumber': number, 'position': position, 'ageGrade': grade,
+                     'time': f'{seconds // 3600:02d}:{seconds // 60 % 60:02d}:{seconds % 60:02d}',
+                     'source': 'html'})
+    if not runs or len(runs) != total:
+        raise ValueError('Row count does not match the full results total; use the all-results page')
+    keys = {(r['date'], r['eventName'].casefold(), r['runNumber']) for r in runs}
+    if len(keys) != total:
+        raise ValueError('Duplicate result rows in HTML')
+    return sorted(runs, key=lambda r: r['date'], reverse=True)
+
+
+def merge_results_html(existing, runs, runner_name, get_event_name):
+    data = deepcopy(existing or {})
+    combined = {result_key(r, get_event_name): dict(r) for r in runs}
+    for run in data.get('runs', []):
+        key = result_key(run, get_event_name)
+        # Keep newer email details and corrections while filling missing history.
+        combined[key] = {**combined.get(key, {}), **run}
+    merged = sorted(combined.values(), key=lambda r: r['date'], reverse=True)
+    latest_report = next((r for r in merged if r.get('reportedTotalRuns') is not None), None)
+    total = len(merged)
+    if latest_report:
+        total = max(total, latest_report['reportedTotalRuns'] + sum(r['date'][:10] > latest_report['date'][:10] for r in merged))
+    total = max(total, data.get('total_runs') or 0)
+    data.update(name=runner_name, runs=merged, total_runs=total, history_complete=len(merged) == total,
+                result_source='email', latest_milestone=next(m for m in (1000,500,250,100,50,25,0) if total >= m))
+    data.setdefault('volunteer_count', None)
+    data.setdefault('volunteers', [])
+    data.setdefault('volunteer_roles', [])
+    data.setdefault('latest_category', 'Unknown')
+    improve_records(data, merged, get_event_name)
+    refresh_locations(data, get_event_name)
+    return data
