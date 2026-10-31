@@ -291,3 +291,4 @@ endorsement or grant rights to third-party branding or email content.
 - [Apple iCloud Mail settings](https://support.apple.com/en-gb/102525)
 - [HACS custom repositories](https://www.hacs.xyz/docs/faq/custom_repositories/)
 - [HACS integration packaging](https://www.hacs.xyz/docs/publish/integration/)
+- [HACS Marketplace documentation](https://www.hacs.xyz/docs/marketplace/)
