@@ -38,17 +38,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     registry = er.async_get(hass)
     obsolete = {f"{DOMAIN}_{entry.entry_id}_{suffix}" for suffix in
                 ("refresh", "new_runs", "next_location", "next_cancelled", "data_live")}
-    legacy_buttons = {"get_all_runs", "get_new_runs"}
+    legacy_buttons = ("get_all_runs", "get_new_runs")
     for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
         if entity.platform != DOMAIN:
             continue
-        # Older releases used athlete-based IDs for these fetch buttons.
-        # Remove registry leftovers without affecting import actions or sensors.
-        if (entity.unique_id in obsolete or
-            (entity.domain == "button" and
-             (entity.entity_id.rsplit("_", 3)[-3:] == ["get", "all", "runs"] or
-              entity.entity_id.rsplit("_", 3)[-3:] == ["get", "new", "runs"] or
-              any(entity.unique_id.endswith("_" + suffix) for suffix in legacy_buttons))):
+        is_legacy_button = (
+            entity.domain == "button"
+            and any(
+                entity.entity_id.endswith("_" + suffix)
+                or entity.unique_id.endswith("_" + suffix)
+                for suffix in legacy_buttons
+            )
+        )
+        if entity.unique_id in obsolete or is_legacy_button:
             registry.async_remove(entity.entity_id)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
