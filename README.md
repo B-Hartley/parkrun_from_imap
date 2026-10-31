@@ -9,12 +9,12 @@ with parkrun.
 
 ## 1. Install using Marketplace
 
-1. Open **Marketplace** in Home Assistant.
-2. Choose **Custom repositories** (sometimes under the menu) and add
-   `https://github.com/B-Hartley/parkrun_from_imap` as an **Integration**.
-3. Install or download **Parkrun from IMAP**, then **restart Home Assistant**.
-4. Open **Settings → Devices & services → Add integration → Parkrun from IMAP**.
-5. Enter your athlete barcode (with or without `A`) and display name.
+1. In Home Assistant, open **Marketplace**.
+2. Click **Add from link** in the top right.
+3. Paste `https://github.com/B-Hartley/parkrun_from_imap` and click **Add**.
+4. Open **Parkrun from IMAP**, choose **Install/Download**, and **restart Home Assistant**.
+5. Open **Settings → Devices & services → Add integration → Parkrun from IMAP**.
+6. Enter your athlete barcode (with or without `A`) and display name.
    Add a separate integration entry for each runner you track.
 
 **Using an older Home Assistant with HACS instead of Marketplace?**
