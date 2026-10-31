@@ -29,12 +29,15 @@ def load_locales():
         locales.append(locale)
     if not locales:
         raise ValueError("No email language definitions installed")
-    return locales
+    return tuple(locales)
+
+
+LOCALES = load_locales()
 
 
 def choose_locale(subject):
     matches = []
-    for locale in load_locales():
+    for locale in LOCALES:
         for kind in ("result", "volunteer"):
             if re.search(locale[kind + "_subject"], subject, re.I):
                 matches.append((locale, kind))
