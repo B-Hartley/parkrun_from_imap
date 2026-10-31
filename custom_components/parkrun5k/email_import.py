@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import date
 from html import unescape
 from html.parser import HTMLParser
 import re
@@ -80,8 +79,8 @@ def parse_email(subject, body, athlete_id):
     match = re.search(locale["result_subject"], subject, re.I)
     if not match:
         raise ValueError("Unrecognised parkrun result subject")
-    venue, event_number, day = match.groups()
-    day = datetime.strptime(day, locale["date_format"]).date().isoformat()
+    venue, event_number, raw_day = match.groups()
+    day = datetime.strptime(raw_day, locale["date_format"]).date().isoformat()
     parser = _Text()
     parser.feed(decoded)
     text = " ".join(" ".join(parser.parts).split())
@@ -111,7 +110,7 @@ def parse_email(subject, body, athlete_id):
     if found := re.search(locale["result"]["ageCategory"], text, re.I):
         run["ageCategory"] = found.group(1).upper()
     if found := re.search(locale["result"]["ageGrade"], text, re.I):
-        run["ageGrade"] = float(found.group(1))
+        run["ageGrade"] = float(found.group(1).replace(locale.get("decimal_separator", "."), "."))
     for key, pattern in ((key, locale["result"][key]) for key in ("venuePB", "yearBest") if key in locale["result"]):
         if found := re.search(pattern, text, re.I):
             _seconds(found.group(1))
@@ -178,14 +177,14 @@ def parse_volunteer_email(subject, decoded, locale):
     match = re.search(locale["volunteer_subject"], subject, re.I)
     if not match:
         raise ValueError("Unrecognised volunteering email subject")
-    venue, day = match.groups()
-    day = datetime.strptime(day, locale["date_format"]).date().isoformat()
+    venue, raw_day = match.groups()
+    day = datetime.strptime(raw_day, locale["date_format"]).date().isoformat()
     parser = _Text()
     parser.feed(decoded)
     text = " ".join(" ".join(parser.parts).split())
     confirmation = re.search(locale["volunteer"]["confirmation"], text, re.I)
     counts = re.search(locale["volunteer"]["counts"], text, re.I)
-    if not confirmation or confirmation.group(1).strip().casefold() != venue.strip().casefold() or confirmation.group(2) != day or not counts:
+    if not confirmation or confirmation.group(1).strip().casefold() != venue.strip().casefold() or confirmation.group(2) != raw_day or not counts:
         raise ValueError("Volunteering email is incomplete or does not match its subject")
     venue_count, total = (int(v.replace(',', '')) for v in counts.groups())
     if not 1 <= venue_count <= total:
