@@ -47,6 +47,32 @@ and extract it into your Home Assistant configuration directory, or copy
 Replace old files instead of overlaying them, then restart Home Assistant.
 The mailbox and automation below are separate setup steps.
 
+## Initial history import: All Results webpage
+
+This is the **one-time history backfill step**, after adding your runner in Home Assistant
+and before setting up IMAP for future results.
+
+1. Sign in to the parkrun website and open your athlete profile's **All Results** page,
+   showing the complete list of results for your barcode.
+2. Use your browser's **View page source** (often Ctrl+U). Copy the complete HTML
+   source, rather than the visible table or the page URL.
+3. In Home Assistant, open **Developer Tools → Actions** and select
+   **Parkrun5k: Import all-results HTML** (`parkrun5k.import_html`).
+4. Enter your athlete barcode and paste the full page HTML into the HTML field,
+   then run the action. Each runner uses their own barcode and HTML page.
+5. Check the total-runs, PB, age-grade and location sensors. If you have more
+   than one runner, repeat for each barcode.
+
+The service processes the pasted HTML **locally**. It never fetches parkrun pages
+or requests credentials. It refuses pages with the wrong barcode, missing results,
+or a mismatch between the reported total and the parsed table rows. Re-importing
+the same page merges results without duplicating runs, and later IMAP emails
+continue to update the same runner's history.
+
+If the website changes its HTML columns or layout, the importer may reject the
+page. Historical results come from the webpage; IMAP still needs separate setup
+to process new running and volunteering messages.
+
 ## Configure the mailbox
 
 Add Home Assistant's built-in **IMAP** integration under **Settings → Devices &
@@ -191,8 +217,8 @@ previous-year boundary). Equal performances use the most recent achievement.
 
 ## Manual imports and setup
 
-The email importer **`parkrun5k.import_email`** and
-**`parkrun5k.update_data`**. Both validate inputs before saving. Changes survive
+Three actions are available: **`parkrun5k.import_html`**, **`parkrun5k.import_email`**,
+and **`parkrun5k.update_data`**. All validate inputs before saving. Changes survive
 restarts. Omitted fields stay unchanged.
 
 To import an old or forwarded email directly, use **Developer Tools → Actions**:
@@ -210,8 +236,7 @@ English result and volunteering acknowledgement formats are supported. The full
 body must contain the matching barcode in a profile link or other supported barcode
 reference. The importer never follows links. Names alone cannot verify identity.
 If the plain-text part omits links, use the complete HTML body (for example the
-appropriate part fetched with IMAP's `imap.fetch_part`) instead. Do not paste the
-all-results web page: this version has no web-page importer.
+appropriate part fetched with IMAP's `imap.fetch_part`) instead. To backfill all historic runs, use the All Results HTML import described above.
 
 To seed or correct records, use a structured update with fictional example values:
 
