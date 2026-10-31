@@ -16,7 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from .email_import import parse_email, merge_email
 from .local_data import get_event_name, prepare_saved_data
-from .records import manual_update, structured_update, refresh_locations, MANUAL_FIELDS
+from .records import manual_update, structured_update, refresh_locations, MANUAL_FIELDS, parse_results_html, merge_results_html
 
 DOMAIN = "parkrun5k"
 CONF_ATHLETE_ID = "athlete_id"
@@ -62,6 +62,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                                vol.Required("body"): cv.string}),
         )
 
+    if not hass.services.has_service(DOMAIN, "import_html"):
+        async def handle_import_html(call):
+            barcode = str(call.data[CONF_ATHLETE_ID]).upper().removeprefix("A")
+            targets = [c for c in hass.data[DOMAIN].values()
+                       if isinstance(c, ParkrunDataUpdateCoordinator) and str(c.barcode) == barcode]
+            if len(targets) != 1:
+                raise ServiceValidationError("Select exactly one configured parkrun runner")
+            try:
+                runs = parse_results_html(call.data["html"], barcode)
+            except (ValueError, TypeError) as err:
+                raise ServiceValidationError(str(err)) from err
+            target = targets[0]
+            async with target.import_lock:
+                data = merge_results_html(target.data, runs, target.runner_name, get_event_name)
+                await target.store.async_save(data)
+                target.async_set_updated_data(data)
+
+        hass.services.async_register(
+            DOMAIN, "import_html", handle_import_html,
+            schema=vol.Schema({vol.Required(CONF_ATHLETE_ID): cv.string,
+                               vol.Required("html"): cv.string}),
+        )
+
     if not hass.services.has_service(DOMAIN, "update_data"):
         async def handle_update_data(call):
             barcode = str(call.data[CONF_ATHLETE_ID]).upper().removeprefix("A")
@@ -102,7 +125,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
     hass.data[DOMAIN].pop(entry.entry_id, None)
     if not hass.data[DOMAIN]:
-        for service in ("import_email", "update_data"):
+        for service in ("import_email", "import_html", "update_data"):
             hass.services.async_remove(DOMAIN, service)
     return True
 
