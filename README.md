@@ -191,7 +191,7 @@ previous-year boundary). Equal performances use the most recent achievement.
 
 ## Manual imports and setup
 
-Only two actions are exposed: **`parkrun5k.import_email`** and
+The email importer **`parkrun5k.import_email`** and
 **`parkrun5k.update_data`**. Both validate inputs before saving. Changes survive
 restarts. Omitted fields stay unchanged.
 
@@ -277,33 +277,6 @@ mix them with `updates`: `personal_best`, `pb_date`, `pb_location`, `pb_event_id
 `unique_locations`, `volunteer_count`, `latest_category`, `year_best`,
 `year_best_year`. Supply the two yearly fields together.
 
-## Move from the old Parkrun5k repository
-
-The internal integration domain remains `parkrun5k` to preserve existing IDs,
-storage and action names. Do not install both repositories simultaneously. Remove
-the old repository from HACS management first, then add this one; keep your runner
-config entries and stored data. If an uninstall removes the files, install the new
-version before restarting. Take a Home Assistant backup first.
-
-## Upgrade from 2.x
-
-Back up Home Assistant, install 3.x, and restart it fully. Keep the existing runner
-entries: their sensor IDs and local stored results are retained. No connection to
-parkrun is needed during setup or restart. Old records with only numeric venue IDs
-use `Event <id>` when no venue name exists in the stored data; they are not silently
-merged into one unknown venue.
-
-Removed: API access and credentials, scraping, event-directory downloads, refresh
-scheduling/actions, Get All Runs/Get New Runs buttons, next-location selection,
-cancellation checks, and the saved web-page HTML importer. The removed controls
-are cleaned from the entity registry. Remove dashboard cards and automations that
-referenced them. Existing internal run history remains for statistics.
-
-For a manual-file installation, replace the integration directory instead of
-copying over it, so obsolete Python files are also removed. Never delete the
-integration's `.storage` results files. If using HACS, download the 3.x version
-and restart before testing the existing import automation.
-
 ## Troubleshooting and privacy
 
 - **Count increases but no event:** confirm the watched folder/filter, listen for
@@ -325,8 +298,7 @@ by Parkrun5k, but Home Assistant automation traces/service logging can contain t
 submitted payload. Never include real mailbox credentials, profile links, barcode
 IDs or private result exports in public issues or test fixtures.
 
-This repository starts with clean history; no commits from the older integration
-were copied. See [PUBLICATION.md](PUBLICATION.md) for release maintenance. The MIT license covers this project's code; it does not imply
+See [PUBLICATION.md](PUBLICATION.md) for release maintenance. The MIT license covers this project's code; it does not imply
 endorsement or grant rights to third-party branding or email content.
 
 ## References
