@@ -1,134 +1,99 @@
 # Parkrun from IMAP
 
-A local Home Assistant integration for your parkrun results and volunteering.
-It reads messages passed to it by Home Assistant's **IMAP integration**, or data
-you enter manually. It does not contact parkrun servers, download event directories,
-scrape pages, emulate an app, or require parkrun credentials.
+Track parkrun runs, personal bests, age grades, locations and volunteering locally in Home Assistant.
 
-This is an independent community project, not an official parkrun integration.
-The icon is an original email symbol, not parkrun branding.
+**No parkrun API, scraping or login required.** Import your existing All Results HTML
+once, then let Home Assistant's separate IMAP integration receive future parkrun result
+and volunteering emails. This is an independent community integration, not affiliated
+with parkrun.
 
-## Install via HACS or Marketplace
-
-Depending on your Home Assistant version, the integration store may be labelled
-**HACS** or **Marketplace**. Use the instructions that match your interface.
-This project is a **custom repository**, not a default catalogue listing.
-
-### HACS (installations showing HACS)
-
-1. Install [HACS](https://www.hacs.xyz/docs/use/download/download/) if needed.
-2. Open [Parkrun from IMAP in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=B-Hartley&repository=parkrun_from_imap&category=integration), or open **HACS → ⋮ → Custom repositories**.
-3. Add `https://github.com/B-Hartley/parkrun_from_imap` with category **Integration**.
-4. Find **Parkrun from IMAP** and select **Download**.
-5. **Restart Home Assistant** to load the new Python code.
-
-### Marketplace (installations showing Marketplace)
+## 1. Install using Marketplace
 
 1. Open **Marketplace** in Home Assistant.
-2. Find the **Custom repositories** / **Add repository** option (the wording and menu position can vary by version).
-3. Add `https://github.com/B-Hartley/parkrun_from_imap` as an **Integration** repository.
-4. Find **Parkrun from IMAP**, then select **Install** or **Download**.
-5. **Restart Home Assistant** after installation or code updates.
+2. Choose **Custom repositories** (sometimes under the menu) and add
+   `https://github.com/B-Hartley/parkrun_from_imap` as an **Integration**.
+3. Install or download **Parkrun from IMAP**, then **restart Home Assistant**.
+4. Open **Settings → Devices & services → Add integration → Parkrun from IMAP**.
+5. Enter your athlete barcode (with or without `A`) and display name.
+   Add a separate integration entry for each runner you track.
 
-### Finish setup (both methods)
+**Using an older Home Assistant with HACS instead of Marketplace?**
+Follow the [HACS installation instructions](INSTALL_HACS.md), then return to step 2 below.
 
-1. Open **Settings → Devices & services → Add integration → Parkrun from IMAP**.
-2. Enter your numeric athlete barcode (an optional `A` prefix is accepted) and display name.
-3. Repeat for additional runners, if needed.
-4. Set up the separate IMAP integration and email automation as described below.
+Requires Home Assistant 2026.3 or newer. This is a custom repository, not a default
+Marketplace listing.
 
-Requires **Home Assistant 2026.3 or newer**. Do not install the old Parkrun5k
-repository alongside this one. When migrating from an older repository, back up
-Home Assistant first and preserve existing runner entries and stored data.
+## 2. Import your complete running history
 
-For manual installation, download `parkrun_from_imap.zip` from the latest release
-and extract it into your Home Assistant configuration directory, or copy
-`custom_components/parkrun5k` into `config/custom_components/parkrun5k`.
-Replace old files instead of overlaying them, then restart Home Assistant.
-The mailbox and automation below are separate setup steps.
+This is a **one-time** import that populates historic times, PBs, age grades and
+venues **before** you start importing new emails.
 
-## Initial history import: All Results webpage
-
-This is the **one-time history backfill step**, after adding your runner in Home Assistant
-and before setting up IMAP for future results.
-
-1. Sign in to the parkrun website and open your athlete profile's **All Results** page,
-   showing the complete list of results for your barcode.
-2. Use your browser's **View page source** (often Ctrl+U). Copy the complete HTML
-   source, rather than the visible table or the page URL.
-3. In Home Assistant, open **Developer Tools → Actions** and select
+1. In your browser, open your parkrun profile and follow the link to **All Results**
+   (the URL ends in `/parkrunner/YOUR_NUMBER/all/`). **Do not use the summary profile
+   page**, which shows only the most recent results.
+2. Use **View page source** (`Ctrl+U` on Windows), select all (`Ctrl+A`),
+   then copy (`Ctrl+C`).
+3. In Home Assistant go to **Developer Tools → Actions** and select
    **Parkrun5k: Import all-results HTML** (`parkrun5k.import_html`).
-4. Enter your athlete barcode and paste the full page HTML into the HTML field,
-   then run the action. Each runner uses their own barcode and HTML page.
-5. Check the total-runs, PB, age-grade and location sensors. If you have more
-   than one runner, repeat for each barcode.
+4. Enter the runner's barcode and paste the *complete page source* into **HTML**.
+   Run the action, then check Total Runs, Personal Best, Best Age Grade and venues.
+5. Repeat separately for other runners and their own barcodes.
 
-The service processes the pasted HTML **locally**. It never fetches parkrun pages
-or requests credentials. It refuses pages with the wrong barcode, missing results,
-or a mismatch between the reported total and the parsed table rows. Re-importing
-the same page merges results without duplicating runs, and later IMAP emails
-continue to update the same runner's history.
+The importer runs locally, checks that the barcode matches the selected runner and
+that every row is present, and merges data without duplicating existing runs. It
+does not fetch the webpage. It does not import detailed volunteering history; the
+email step below gathers future volunteering credits and venues.
 
-If the website changes its HTML columns or layout, the importer may reject the
-page. Historical results come from the webpage; IMAP still needs separate setup
-to process new running and volunteering messages.
+## 3. Configure Home Assistant IMAP
 
-## Configure the mailbox
+Home Assistant's **IMAP** integration reads the mailbox; Parkrun from IMAP itself
+does not store your email credentials.
 
-Add Home Assistant's built-in **IMAP** integration under **Settings → Devices &
-services**. The mailbox credentials belong in IMAP, never in this integration or
-the automation YAML. A dedicated folder for incoming parkrun emails makes it
-easier to manage old messages. `INBOX` also works.
+1. Go to **Settings → Devices & services → Add integration → IMAP**.
+2. Configure your email account and the folder that receives your parkrun messages.
+   A dedicated parkrun folder is easiest, although `INBOX` also works.
+3. Configure the IMAP search expression below. **Do not use `UNSEEN`**; results
+   should import even after you have read the message.
+4. Create a folder called **Parkrun Processed** in the same mailbox. The automation
+   in step 4 moves a message only after a successful import.
+5. Leave the IMAP custom event template blank. The automation uses `imap.fetch`
+   to retrieve the complete message instead of relying on truncated event text.
 
-For **iCloud Mail**, use:
+For iCloud Mail, use server `imap.mail.me.com`, port `993`, SSL/TLS and an
+Apple app-specific password. Enter the full email address as the username if needed.
 
-| Setting | Value |
-| --- | --- |
-| Server | `imap.mail.me.com` |
-| Port | `993` |
-| Security | SSL/TLS enabled |
-| Username | Your iCloud Mail username; try the full email address if needed |
-| Password | An Apple app-specific password |
-| Folder | `INBOX`, or the exact folder you want to monitor |
-
-Create a separate mailbox folder called **Parkrun Processed**. The automation
-moves messages there only after their data has been saved successfully.
-
-In IMAP's options, set the **search** to this single line:
+Use this IMAP search query for normal messages:
 
 ```text
 FROM "noreply@parkrun.com" OR SUBJECT "Your result from" SUBJECT "Thank you for volunteering at"
 ```
 
-The two subject searches are alternatives; the sender restriction applies to both.
-Do not use `UNSEEN`: a message should still import if you read it first.
-To restrict old mail, append `SINCE 01-Oct-2026`, choosing your own starting date.
-A date restriction excludes older volunteering acknowledgements too.
-
-For tests forwarded from your own address, temporarily use:
+If you are testing **forwarded** emails from your own address, temporarily replace
+it with:
 
 ```text
 OR SUBJECT "Your result from" SUBJECT "Thank you for volunteering at"
 ```
 
-The importer still checks the athlete barcode in the message body. Restore the
-sender filter after testing. Forward a real complete message, retaining its links
-and original subject text; `Fwd:` prefixes are accepted.
+Keep the complete original email (including links and the athlete barcode). The
+importer checks identity; it rejects messages without a matching barcode.
 
-Leave the custom event template empty. Event body text/headers can remain off:
-the automation uses `imap.fetch` for the full body, avoiding the event text limit.
-IMAP Push can be used if it works with your provider; if arrivals are unreliable,
-turn Push off and test normal polling. Parkrun5k itself does no polling.
+## 4. Link IMAP to the runner (copy-and-paste automation)
 
-## Connect incoming email to the importer
+**A normal YAML automation is simpler than a blueprint here.** It needs only two
+values: the IMAP integration's `entry_id` and the runner's barcode. It is easy
+to inspect in Home Assistant and does not require downloading or updating a separate
+blueprint.
 
-In **Developer Tools → Events**, listen for `imap_content`, then reload the IMAP
-entry or send a matching message. Copy its **`entry_id`**. This is the IMAP config
-entry ID, not its sensor entity ID and not the Parkrun5k entry ID.
-
-Create an automation in YAML mode using the example below. Replace
-`YOUR_IMAP_ENTRY_ID` and `1234567` with your entry ID and athlete barcode. Create
-`Parkrun Processed` in the mailbox first, or remove the final move action while testing.
+1. Go to **Developer Tools → Events** and listen for `imap_content`.
+2. Reload IMAP or send a matching email. Find `entry_id` in the emitted event.
+   **Use the IMAP entry ID**, not a sensor entity ID or the Parkrun entry ID.
+3. Create an automation and choose **Edit in YAML**. Copy the example below.
+4. Replace `YOUR_IMAP_ENTRY_ID` and `1234567` with your values.
+5. Check that the mailbox contains **Parkrun Processed**, then save and enable.
+   For the first test, you may remove the final `imap.move` action.
+6. Send a matching result email, check the automation trace and runner's sensors,
+   then confirm the message moves to **Parkrun Processed**.
 
 ```yaml
 alias: Import parkrun emails
@@ -163,19 +128,13 @@ actions:
       target_folder: Parkrun Processed
 ```
 
-Do not enable `continue_on_error` on the import action. A parsing or save failure
-must stop the move, leaving the message available to investigate/retry. If the
-move fails after a successful import, reimporting the same message is safe.
-
-For several runners, use separate filtered folders/IMAP entries and one automation
-per runner. Do not point identical automations for different athletes at one
-unfiltered mailbox: each importer deliberately rejects other people's barcodes.
-
-`initial: true` is an IMAP message-change flag, not “only at startup”. IMAP is not
-a bulk-history importer: changing a filter or reloading can expose an existing
-matching message but does not guarantee every old email will be emitted. Use
-manual imports below to backfill, or present old emails individually to a test
-folder. Keep processed messages outside the watched folder.
+**Important:** Do not use `continue_on_error` on the import action: if parsing
+fails, the email should remain in the incoming folder for investigation.
+For multiple runners use **separate filtered mailbox folders / IMAP entries and
+one automation per runner**. Do not direct two runner automations at the same
+unfiltered inbox; the wrong-barcode automation will reject the message.
+IMAP events are not a reliable bulk historical backfill—use step 2 for history.
+Existing emails are not guaranteed to retrigger merely because you change a filter.
 
 ## What is maintained
 
@@ -215,7 +174,7 @@ records require actual dated performances and expire at local midnight; they cov
 after the same calendar date last year through today (Feb 29 uses Feb 28 as the
 previous-year boundary). Equal performances use the most recent achievement.
 
-## Manual imports and setup
+## Advanced manual imports and corrections
 
 Three actions are available: **`parkrun5k.import_html`**, **`parkrun5k.import_email`**,
 and **`parkrun5k.update_data`**. All validate inputs before saving. Changes survive
