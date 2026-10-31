@@ -6,8 +6,40 @@ from datetime import date
 from html import unescape
 from html.parser import HTMLParser
 import re
+import json
+from pathlib import Path
+from datetime import datetime
 
 from .records import improve_records, result_key, refresh_locations
+
+
+
+def load_locales():
+    """Load locale pattern files in lexical order."""
+    folder = Path(__file__).with_name("languages")
+    locales = []
+    for path in sorted(folder.glob("*.json")):
+        locale = json.loads(path.read_text(encoding="utf-8"))
+        if locale["code"] != path.stem:
+            raise ValueError("Locale filename and code differ")
+        for key in ("result_subject", "volunteer_subject", "barcode"):
+            re.compile(locale[key])
+        for section in ("result", "volunteer"):
+            for regex in locale[section].values():
+                re.compile(regex)
+        locales.append(locale)
+    return locales
+
+
+def choose_locale(subject):
+    matches = []
+    for locale in load_locales():
+        for kind in ("result", "volunteer"):
+            if re.search(locale[kind + "_subject"], subject, re.I):
+                matches.append((locale, kind))
+    if len(matches) != 1:
+        raise ValueError("Unsupported or ambiguous email language")
+    return matches[0]
 
 
 class _Text(HTMLParser):
@@ -34,21 +66,22 @@ def parse_email(subject, body, athlete_id):
     athlete_id = str(athlete_id).upper().removeprefix("A")
     if not re.fullmatch(r"[0-9]+", athlete_id):
         raise ValueError("Invalid athlete ID")
+    locale, kind = choose_locale(subject)
     decoded = re.sub(r"(?m)^\s*(?:>\s*)+", "", unescape(body))
-    ids = set(re.findall(r"(?:[?&]Ath=|\bBarcode\s+A|[—–]\s*A)([0-9]+)\b", decoded, re.I))
+    ids = set(re.findall(locale["barcode"], decoded, re.I))
     if ids and ids != {athlete_id}:
         raise ValueError("Email barcode does not match the selected runner")
     # Some plain-text messages omit links and the barcode. Require a barcode
     # in the full body rather than guessing from a first name.
     if not ids:
         raise ValueError("No barcode found; supply the complete email including links")
-    if re.search(r"Thank you for volunteering at ", subject, re.I):
-        return parse_volunteer_email(subject, decoded)
-    match = re.search(r"Your result from (.+?) parkrun, Event (\d+) on (\d{4}-\d{2}-\d{2})\s*$", subject, re.I)
+    if kind == "volunteer":
+        return parse_volunteer_email(subject, decoded, locale)
+    match = re.search(locale["result_subject"], subject, re.I)
     if not match:
         raise ValueError("Unrecognised parkrun result subject")
     venue, event_number, day = match.groups()
-    date.fromisoformat(day)
+    day = datetime.strptime(day, locale["date_format"]).date().isoformat()
     parser = _Text()
     parser.feed(decoded)
     text = " ".join(" ".join(parser.parts).split())
@@ -59,34 +92,27 @@ def parse_email(subject, body, athlete_id):
             raise ValueError("Result email is incomplete or has an unsupported format")
         return result
 
-    result_time = required(r"Your time was (\d{2}:\d{2}:\d{2})").group(1)
+    result_time = required(locale["result"]["time"]).group(1)
     _seconds(result_time)
-    total = int(required(r"completing your ([\d,]+)(?:st|nd|rd|th) parkrun").group(1).replace(",", ""))
+    total = int(required(locale["result"]["total"]).group(1).replace(",", ""))
     if total < 1:
         raise ValueError("Invalid total runs")
-    position = required(r"finished in ([\d,]+)(?:st|nd|rd|th) place out of a field of ([\d,]+)")
+    position = required(locale["result"]["position"])
     pos, field = (int(v.replace(",", "")) for v in position.groups())
     if not 1 <= pos <= field:
         raise ValueError("Invalid finishing position")
     run = {"date": day + "T00:00:00", "eventName": venue.strip(),
            "runNumber": int(event_number), "time": result_time, "position": pos,
            "totalAthletes": field, "reportedTotalRuns": total, "source": "email"}
-    patterns = {
-        "genderPosition": r"You were the ([\d,]+)(?:st|nd|rd|th) (?:male|female)",
-        "ageCategoryPosition": r"came ([\d,]+)(?:st|nd|rd|th) in your age category",
-        "venueRuns": r"and your ([\d,]+)(?:st|nd|rd|th) at",
-    }
+    patterns = {key: locale["result"][key] for key in ("genderPosition", "ageCategoryPosition", "venueRuns") if key in locale["result"]}
     for key, pattern in patterns.items():
         if found := re.search(pattern, text, re.I):
             run[key] = int(found.group(1).replace(",", ""))
-    if found := re.search(r"age category ([A-Z]{1,3}\d{2}(?:[-–]\d{2}|\+)?)", text, re.I):
+    if found := re.search(locale["result"]["ageCategory"], text, re.I):
         run["ageCategory"] = found.group(1).upper()
-    if found := re.search(r"age-graded score of (\d+(?:\.\d+)?)%", text, re.I):
+    if found := re.search(locale["result"]["ageGrade"], text, re.I):
         run["ageGrade"] = float(found.group(1))
-    for key, pattern in {
-        "venuePB": r"Your PB at .+? (?:remains|is) (\d{2}:\d{2}:\d{2})",
-        "yearBest": r"Your best time this year (?:remains|is) (\d{2}:\d{2}:\d{2})",
-    }.items():
+    for key, pattern in ((key, locale["result"][key]) for key in ("venuePB", "yearBest") if key in locale["result"]):
         if found := re.search(pattern, text, re.I):
             _seconds(found.group(1))
             run[key] = found.group(1)
@@ -147,18 +173,18 @@ def merge_email(existing, run, runner_name, get_event_name):
     return refresh_locations(data, get_event_name)
 
 
-def parse_volunteer_email(subject, decoded):
+def parse_volunteer_email(subject, decoded, locale):
     """Parse an already identity-validated volunteer acknowledgement."""
-    match = re.search(r"Thank you for volunteering at (.+?) parkrun on (\d{4}-\d{2}-\d{2})\s*$", subject, re.I)
+    match = re.search(locale["volunteer_subject"], subject, re.I)
     if not match:
         raise ValueError("Unrecognised volunteering email subject")
     venue, day = match.groups()
-    date.fromisoformat(day)
+    day = datetime.strptime(day, locale["date_format"]).date().isoformat()
     parser = _Text()
     parser.feed(decoded)
     text = " ".join(" ".join(parser.parts).split())
-    confirmation = re.search(r"support at (.+?) parkrun on (\d{4}-\d{2}-\d{2})", text, re.I)
-    counts = re.search(r"volunteered at this event on ([\d,]+) separate occasions,? and your total number of milestone credits is ([\d,]+)", text, re.I)
+    confirmation = re.search(locale["volunteer"]["confirmation"], text, re.I)
+    counts = re.search(locale["volunteer"]["counts"], text, re.I)
     if not confirmation or confirmation.group(1).strip().casefold() != venue.strip().casefold() or confirmation.group(2) != day or not counts:
         raise ValueError("Volunteering email is incomplete or does not match its subject")
     venue_count, total = (int(v.replace(',', '')) for v in counts.groups())
