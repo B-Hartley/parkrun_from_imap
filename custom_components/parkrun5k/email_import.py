@@ -27,6 +27,8 @@ def load_locales():
             for regex in locale[section].values():
                 re.compile(regex)
         locales.append(locale)
+    if not locales:
+        raise ValueError("No email language definitions installed")
     return locales
 
 
@@ -107,10 +109,12 @@ def parse_email(subject, body, athlete_id):
     for key, pattern in patterns.items():
         if found := re.search(pattern, text, re.I):
             run[key] = int(found.group(1).replace(",", ""))
-    if found := re.search(locale["result"]["ageCategory"], text, re.I):
-        run["ageCategory"] = found.group(1).upper()
-    if found := re.search(locale["result"]["ageGrade"], text, re.I):
-        run["ageGrade"] = float(found.group(1).replace(locale.get("decimal_separator", "."), "."))
+    if pattern := locale["result"].get("ageCategory"):
+        if found := re.search(pattern, text, re.I):
+            run["ageCategory"] = found.group(1).upper()
+    if pattern := locale["result"].get("ageGrade"):
+        if found := re.search(pattern, text, re.I):
+            run["ageGrade"] = float(found.group(1).replace(locale.get("decimal_separator", "."), "."))
     for key, pattern in ((key, locale["result"][key]) for key in ("venuePB", "yearBest") if key in locale["result"]):
         if found := re.search(pattern, text, re.I):
             _seconds(found.group(1))
