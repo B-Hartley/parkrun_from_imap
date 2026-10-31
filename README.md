@@ -8,24 +8,44 @@ scrape pages, emulate an app, or require parkrun credentials.
 This is an independent community project, not an official parkrun integration.
 The icon is an original email symbol, not parkrun branding.
 
-## Install through HACS
+## Install via HACS or Marketplace
 
-[Open in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=B-Hartley&repository=parkrun_from_imap&category=integration)
+Depending on your Home Assistant version, the integration store may be labelled
+**HACS** or **Marketplace**. Use the instructions that match your interface.
+This project is a **custom repository**, not a default catalogue listing.
 
-This is a **custom HACS repository**, not a listing in the default HACS catalogue.
+### HACS (installations showing HACS)
 
 1. Install [HACS](https://www.hacs.xyz/docs/use/download/download/) if needed.
-2. Open the link above, or choose **HACS → ⋮ → Custom repositories**.
-3. Add `https://github.com/B-Hartley/parkrun_from_imap`, type **Integration**.
-4. Download Parkrun from IMAP, then **restart Home Assistant**.
-5. Open **Settings → Devices & services → Add integration → Parkrun from IMAP**.
-6. Enter your numeric athlete barcode (an optional `A` prefix is accepted) and
-   display name. Repeat for additional runners.
+2. Open [Parkrun from IMAP in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=B-Hartley&repository=parkrun_from_imap&category=integration), or open **HACS → ⋮ → Custom repositories**.
+3. Add `https://github.com/B-Hartley/parkrun_from_imap` with category **Integration**.
+4. Find **Parkrun from IMAP** and select **Download**.
+5. **Restart Home Assistant** to load the new Python code.
 
-Requires Home Assistant 2026.3 or newer. For manual installation, download `parkrun_from_imap.zip` from the latest release
-and extract it into your Home Assistant configuration directory, or copy `custom_components/parkrun5k` into your
-Home Assistant `config/custom_components` directory, restart, then add the integration.
-HACS installs the files; the mailbox and automation below are separate setup steps.
+### Marketplace (installations showing Marketplace)
+
+1. Open **Marketplace** in Home Assistant.
+2. Find the **Custom repositories** / **Add repository** option (the wording and menu position can vary by version).
+3. Add `https://github.com/B-Hartley/parkrun_from_imap` as an **Integration** repository.
+4. Find **Parkrun from IMAP**, then select **Install** or **Download**.
+5. **Restart Home Assistant** after installation or code updates.
+
+### Finish setup (both methods)
+
+1. Open **Settings → Devices & services → Add integration → Parkrun from IMAP**.
+2. Enter your numeric athlete barcode (an optional `A` prefix is accepted) and display name.
+3. Repeat for additional runners, if needed.
+4. Set up the separate IMAP integration and email automation as described below.
+
+Requires **Home Assistant 2026.3 or newer**. Do not install the old Parkrun5k
+repository alongside this one. When migrating from an older repository, back up
+Home Assistant first and preserve existing runner entries and stored data.
+
+For manual installation, download `parkrun_from_imap.zip` from the latest release
+and extract it into your Home Assistant configuration directory, or copy
+`custom_components/parkrun5k` into `config/custom_components/parkrun5k`.
+Replace old files instead of overlaying them, then restart Home Assistant.
+The mailbox and automation below are separate setup steps.
 
 ## Configure the mailbox
 
