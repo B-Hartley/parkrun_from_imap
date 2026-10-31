@@ -191,7 +191,7 @@ data:
     PASTE THE COMPLETE EMAIL BODY INCLUDING LINKS HERE
 ```
 
-English result and volunteering acknowledgement formats are supported. The full
+English result and volunteering acknowledgement formats are included as editable locale patterns. The full
 body must contain the matching barcode in a profile link or other supported barcode
 reference. The importer never follows links. Names alone cannot verify identity.
 If the plain-text part omits links, use the complete HTML body (for example the
@@ -260,6 +260,19 @@ mix them with `updates`: `personal_best`, `pb_date`, `pb_location`, `pb_event_id
 `best_age_grade`, `bag_date`, `bag_location`, `bag_event_id`, `total_runs`,
 `unique_locations`, `volunteer_count`, `latest_category`, `year_best`,
 `year_best_year`. Supply the two yearly fields together.
+
+## Email languages and community translations
+
+The email importer reads language-specific regex definitions from
+[`custom_components/parkrun5k/languages/`](custom_components/parkrun5k/languages/).
+English (`en.json`) is provided first. Other languages can be added with a small
+JSON file rather than changing Python code. The language is selected by matching
+the email subject; the athlete barcode must still match before any data is saved.
+See [LANGUAGES.md](LANGUAGES.md) for the pattern fields and contribution guide.
+
+**For non-English mail**, adjust the IMAP search and automation's English subject
+conditions in steps 3–4 to match the actual language. Only English is currently
+verified; please contribute redacted real examples to support other languages.
 
 ## Troubleshooting and privacy
 
