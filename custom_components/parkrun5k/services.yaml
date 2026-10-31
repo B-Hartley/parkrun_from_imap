@@ -118,3 +118,19 @@ update_data:
           step: 1
           mode: box
 
+
+import_html:
+  name: Import all-results HTML
+  description: Paste saved parkrun all-results page source. No website access.
+  fields:
+    athlete_id:
+      name: Barcode
+      required: true
+      selector:
+        text:
+    html:
+      name: Complete HTML
+      required: true
+      selector:
+        text:
+          multiline: true
